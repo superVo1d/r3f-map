@@ -22,6 +22,7 @@
     "@types/three": "^0.171.0",
     "canvas-5-polyfill": "^0.1.5",
     "class-variance-authority": "^0.7.1",
+    "classnames": "^2.5.1",
     "clsx": "^2.1.1",
     "eslint": "9.17.0",
     "eslint-config-next": "15.1.3",
