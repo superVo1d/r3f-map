@@ -290,10 +290,9 @@ const IsometricCamera = ({
   return (
     <>
       <OrthographicCamera ref={cameraRef} />
-      <CameraControls
+      {cameraRef.current && <CameraControls
         ref={controlsRef}
         camera={cameraRef.current}
-        rotation={false}
         polarAngle={Math.PI / 4}
         minPolarAngle={Math.PI / 4}
         maxPolarAngle={Math.PI / 4}
@@ -306,9 +305,10 @@ const IsometricCamera = ({
         mouseButtons={{
           left: CameraControlsBase.ACTION.TRUCK,
           wheel: CameraControlsBase.ACTION.ZOOM,
-          right: CameraControlsBase.ACTION.NONE
+          right: CameraControlsBase.ACTION.NONE,
+          middle: CameraControlsBase.ACTION.NONE,
         }}
-      />
+      />}
     </>
   );
 };
