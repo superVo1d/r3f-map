@@ -1,0 +1,49 @@
+.floor-select {
+    position: fixed;
+    right: 16px;
+    top: 50%;
+    transform: translate3d(0, -50%, 0);
+    z-index: 1;
+    mix-blend-mode: darken;
+    font-weight: 600;
+
+    ul {
+        display: flex;
+        flex-direction: column-reverse;
+        padding: 0;
+        gap: 8px;
+    }
+
+    li {
+        list-style: none;
+        padding: 0;
+    }
+
+    button {
+        all: none;
+    }
+
+    &__item {
+        background-color: #000;
+        border-radius: 50%;
+        color: #fff;
+        font-size: 32px;
+        width: 48px;
+        height: 48px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border: 1px solid #000;
+        transition: background-color 0.2s ease, color 0.2s ease;
+
+        &:hover,
+        &_active {
+            background-color: #fff;
+            color: #000;
+        }
+
+        &_active {
+            cursor: default;
+        }
+    }
+}

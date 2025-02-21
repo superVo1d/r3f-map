@@ -3,9 +3,10 @@
 import { Canvas, ThreeEvent, useFrame, useThree } from '@react-three/fiber';
 import { CameraControls, useGLTF, Html, OrthographicCamera } from '@react-three/drei';
 import CameraControlsBase from 'camera-controls';
-import { CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
+import { CSSProperties, memo, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import styles from './index.module.scss';
+import FloorSelect from '../FloorSelect';
 
 type CircleData = {
   position: THREE.Vector3;
@@ -17,11 +18,29 @@ type GLTFResult = {
   scene: THREE.Group;
 };
 
-export default function Map3D() {
+interface IFloor {
+  moveCameraTo: (target: THREE.Vector3) => void;
+  active?: boolean;
+  position?: THREE.Vector3;
+  index: number;
+}
+
+export function Floor({ moveCameraTo, active = false, position, index }: IFloor) {
+  const opacityLevel = 0.1 / Math.abs(index);
+
   const { scene } = useGLTF('/svg_map.glb') as GLTFResult;
+  const floorRef = useRef<THREE.Group>(null);
   const [circleData, setCircleData] = useState<CircleData[]>([]);
-  const [cameraTarget, setCameraTarget] = useState(new THREE.Vector3());
-  const isCameraAnimating = useRef(false);
+  const [opacity, setOpacity] = useState(active ? 1 : opacityLevel);
+  const basePosition = useMemo(() => position, []);
+  
+  useFrame(() => {
+    if (floorRef.current) {
+      floorRef.current.position.lerp(position || new THREE.Vector3(0, 0, 0), 0.1); // Smooth movement
+    }
+
+    setOpacity(THREE.MathUtils.lerp(opacity, active ? 1 : opacityLevel, 0.1))
+  });
 
   // Generate circle data based on scene
   useMemo(() => {
@@ -67,49 +86,31 @@ export default function Map3D() {
     }
   };
 
-  const moveCameraTo = (targetPosition: THREE.Vector3) => {
-    isCameraAnimating.current = true;
-    setCameraTarget(targetPosition);
-  };
-
   return (
-    <Canvas shadows>
-      <IsometricCamera
-        cameraTarget={cameraTarget}
-        isCameraAnimating={isCameraAnimating}
-      />
-      <ambientLight intensity={0.5} />
-      <directionalLight
-        position={[10, 10, 10]}
-        castShadow
-        shadow-camera-near={0.1}
-        shadow-mapSize-width={4096}
-        shadow-mapSize-height={4096}
-        shadow-camera-far={20}
-        shadow-camera-left={-10}
-        shadow-camera-right={10}
-        shadow-camera-top={10}
-        shadow-camera-bottom={-10}
-      />
-      <SomeObject />
+    <group ref={floorRef} position={basePosition}>
+      {active && <SomeObject />}
       <group>
         {scene.children.map((child, index) =>
           child instanceof THREE.Mesh ? (
             <mesh
               key={index}
               geometry={child.geometry}
-              material={child.material}
+              material={new THREE.MeshStandardMaterial({
+                color: child.material.color,
+                transparent: true,
+                opacity,
+              })}
               position={child.position}
               rotation={child.rotation}
               scale={child.scale}
-              onPointerOver={handlePointerOver}
-              onPointerOut={handlePointerOut}
+              onPointerOver={active && handlePointerOver}
+              onPointerOut={active && handlePointerOut}
               receiveShadow
             />
           ) : null
         )}
       </group>
-      {circleData.map((circle, index) => (
+      {active && circleData.map((circle, index) => (
         <Html
           key={`${circle.meshIndex}-${index}`}
           position={circle.position.toArray()}
@@ -127,11 +128,68 @@ export default function Map3D() {
           </div>
         </Html>
       ))}
-    </Canvas>
+    </group>
+  )
+}
+
+export default function Map3D() {
+  const [cameraTarget, setCameraTarget] = useState(new THREE.Vector3());
+  const [activeIndex, setActiveIndex] = useState(0);
+  const isCameraAnimating = useRef(false);
+
+  const moveCameraTo = (targetPosition: THREE.Vector3) => {
+    isCameraAnimating.current = true;
+    setCameraTarget(targetPosition);
+  };
+
+
+  console.log(activeIndex);
+
+  return (
+    <>
+      <Canvas shadows>
+        <IsometricCamera
+          cameraTarget={cameraTarget}
+          isCameraAnimating={isCameraAnimating}
+        />
+        <ambientLight intensity={0.5} />
+        <directionalLight
+          position={[10, 10, 10]}
+          castShadow
+          shadow-camera-near={0.1}
+          shadow-mapSize-width={4096}
+          shadow-mapSize-height={4096}
+          shadow-camera-far={20}
+          shadow-camera-left={-10}
+          shadow-camera-right={10}
+          shadow-camera-top={10}
+          shadow-camera-bottom={-10}
+        />
+        <Floor
+          active={activeIndex === 2}
+          index={2 - activeIndex}
+          moveCameraTo={moveCameraTo}
+          position={new THREE.Vector3(0, 2 - activeIndex, 0)}
+        />
+        <Floor
+          active={activeIndex === 1}
+          index={1 - activeIndex}
+          moveCameraTo={moveCameraTo}
+          position={new THREE.Vector3(0, 1 - activeIndex, 0)}
+        />
+        <Floor
+          active={activeIndex === 0}
+          index={0 - activeIndex}
+          moveCameraTo={moveCameraTo}
+          position={new THREE.Vector3(0, 0 - activeIndex, 0)}
+        />
+      </Canvas>
+      <FloorSelect levels={3} activeIndex={activeIndex} setActiveIndex={setActiveIndex} />
+    </>
   );
 }
 
-const SomeObject = () => {
+const SomeObject = memo(() => {
   const objectRef = useRef<THREE.Mesh>(null);
   
   useFrame(({clock}) => {
@@ -144,13 +202,13 @@ const SomeObject = () => {
       <meshStandardMaterial color={new THREE.Color(Math.random(), Math.random(), Math.random())} />
     </mesh>
   );
-}
+});
 
 useGLTF.preload('/svg_map.glb');
 
 const boundaryBox =  new THREE.Box3(
-  new THREE.Vector3(-1, -1, -1),
-  new THREE.Vector3(1, 1, 1)
+  new THREE.Vector3(-1.5, -1.5, -1.5),
+  new THREE.Vector3(1.5, 1.5, 1.5)
 );
 
 const IsometricCamera = ({
@@ -183,7 +241,19 @@ const IsometricCamera = ({
   }, [size, set]);
 
   useEffect(() => {
-    if (cameraTarget) setIsAnimating(true);
+    if (cameraTarget) {
+      setIsAnimating(true);
+      isCameraAnimating.current = true;
+  
+      const timeout = setTimeout(() => {
+        if (isAnimating) {
+          isCameraAnimating.current = false;
+          setIsAnimating(false);
+        }
+      }, 500);
+  
+      return () => clearTimeout(timeout);
+    }
   }, [cameraTarget]);
 
   useFrame(() => {
@@ -192,7 +262,9 @@ const IsometricCamera = ({
       const target = new THREE.Vector3();
       controls.getTarget(target);
 
-      if (target.distanceTo(cameraTarget) < 0.01) {
+      const distance = target.distanceTo(cameraTarget);
+
+      if (distance < 0.01) {
         isCameraAnimating.current = false;
         setIsAnimating(false);
       }
